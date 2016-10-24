@@ -17,6 +17,18 @@ else
 fi
 
 
+#echo "Preparing PostgreSQL"
+#echo "create user \"discourse\" superuser with password 'discourse;'" | psql -U postgres
+#sudo -u postgres createuser --superuser discourse
+#cat "host all all 0.0.0.0/0 trust" >> /var/lib/postgresql/9.4/main/pg_hba.conf
+#sudo service postgresql restart
+
+
+echo "Starting PostgreSQL and redis"
+docker-compose -f docker-stuff/compositions/travis/docker-compose.yml up --build -d
+docker-compose -f docker-stuff/compositions/travis/docker-compose.yml run wait
+
+
 echo "Building image '${REPO}:${TAG}'"
 
 sudo mkdir /var/discourse

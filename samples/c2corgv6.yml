@@ -27,7 +27,8 @@ expose:
   #- "5432:5432"  # fwd host port 5433 to container port 5432 (postgresql)
 
 # any extra arguments for Docker?
-# docker_args:
+docker_args:
+  - "--network=travis"
 
 params:
   db_default_text_search_config: "pg_catalog.english"
@@ -76,29 +77,30 @@ env:
   ## The CDN address for this Discourse instance (configured to pull)
   #DISCOURSE_CDN_URL: //discourse-cdn.example.com
 
-  DISCOURSE_REDIS_HOST: 10.26.10.7
+  #DISCOURSE_REDIS_HOST: 10.26.10.7
 
   DISCOURSE_DB_SOCKET: 
-  DISCOURSE_DB_HOST: 10.26.10.7
+  DISCOURSE_DB_HOST: postgresql
 
-  PGHOST: 10.26.10.7
-  PGPORT: 5433
-  PGDATABASE: discourse
-  PGUSER: discourse
-  PGPASSWORD: discourse
+  #PGHOST: 10.26.10.7
+  #PGPORT: 5433
+  #PGDATABASE: discourse
+  #PGUSER: discourse
+  #PGPASSWORD: discourse
 
-  ENABLE_SSO: true
-  SSO_URL: https://c2corgv6.demo-camptocamp.com/auth-sso
-  LOGOUT_REDIRECT: https://c2corgv6.demo-camptocamp.com/auth-sso
-  SSO_SECRET: test
+  # Settings overridden by environment variables
+  #ENABLE_SSO: true
+  #SSO_URL: https://c2corgv6.demo-camptocamp.com/auth-sso
+  #LOGOUT_REDIRECT: https://c2corgv6.demo-camptocamp.com/auth-sso
+  #SSO_SECRET: test
 
-#links:
-#  - link:
-#      name: postgresql
-#      alias: postgresql
-#  - link:
-#      name: redis
-#      alias: redis
+links:
+  - link:
+      name: travis_postgresql_1
+      alias: postgresql
+  - link:
+      name: travis_redis_1
+      alias: redis
 
 ## These containers are stateless, all data is stored in /shared
 volumes:
