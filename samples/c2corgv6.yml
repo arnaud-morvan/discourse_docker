@@ -1,0 +1,168 @@
+##
+## After making changes to this file, you MUST rebuild for any changes
+## to take effect in your live Discourse instance:
+##
+## /var/discourse/launcher rebuild app
+##
+## Make sure to obey YAML syntax! You can use this site to help check:
+## http://www.yamllint.com/
+
+## this is the all-in-one, standalone Discourse Docker container template
+
+# You may add rate limiting by uncommenting the web.ratelimited template.
+# Out of the box it allows 12 reqs a second per ip, and 100 per minute per ip
+# This is configurable by amending the params in this file
+
+templates:
+  # - "templates/postgres.template.yml"
+  # - "templates/redis.template.yml"
+  - "templates/web.template.yml"
+  #- "templates/sshd.template.yml"
+  #- "templates/web.ratelimited.template.yml"
+
+## which TCP/IP ports should this container expose?
+expose:
+  - "1234:80"   # fwd host port 80   to container port 80 (http)
+  #- "2222:22" # fwd host port 2222 to container port 22 (ssh)
+  #- "5432:5432"  # fwd host port 5433 to container port 5432 (postgresql)
+
+# any extra arguments for Docker?
+# docker_args:
+
+params:
+  db_default_text_search_config: "pg_catalog.english"
+
+  ## Set db_shared_buffers to a max of 25% of the total memory.
+  ##
+  ## On 1GB installs set to 128MB (to leave room for other processes)
+  ## on a 4GB instance you may raise to 1GB
+  #db_shared_buffers: "256MB"
+  db_shared_buffers: "128MB"
+  #
+  ## Set higher on large instances it defaults to 10MB, for a 3GB install 40MB is a good default
+  ## this improves sorting performance, but adds memory usage per-connection
+  #db_work_mem: "40MB"
+  db_work_mem: "10MB"
+  #
+  ## Which Git revision should this container use? (default: tests-passed)
+  #version: tests-passed
+  #version: stable
+  version: v1.5.3
+
+env:
+  LANG: en_US.UTF-8
+  # DISCOURSE_DEFAULT_LOCALE: en
+
+  ## TODO: How many concurrent web requests are supported?
+  ## With 2GB we recommend 3-4 workers, with 1GB only 2
+  ## If you have lots of memory, use one or two workers per logical CPU core
+  #UNICORN_WORKERS: 3
+  UNICORN_WORKERS: 2
+
+  ## TODO: List of comma delimited emails that will be made admin and developer
+  ## on initial signup example 'user1@example.com,user2@example.com'
+  DISCOURSE_DEVELOPER_EMAILS: 'marc.fournier@camptocamp.com,alexandre.saunier@camptocamp.com,tobias.sauerwein@camptocamp.com,guillaume.beraudo@camptocamp.com,arnaud.morvan@camptocamp.com'
+
+  ## TODO: The domain name this Discourse instance will respond to
+  DISCOURSE_HOSTNAME: 'forum.demov6.camptocamp.org'
+
+  ## TODO: The mailserver this Discourse instance will use
+  DISCOURSE_SMTP_ADDRESS: psemail.epfl.ch         # (mandatory)
+  #DISCOURSE_SMTP_PORT: 587                        # (optional)
+  #DISCOURSE_SMTP_USER_NAME: user@example.com      # (optional)
+  #DISCOURSE_SMTP_PASSWORD: pa$$word               # (optional, WARNING the char '#' in pw can cause problems!)
+  #DISCOURSE_SMTP_ENABLE_START_TLS: true           # (optional, default true)
+
+  ## The CDN address for this Discourse instance (configured to pull)
+  #DISCOURSE_CDN_URL: //discourse-cdn.example.com
+
+  DISCOURSE_REDIS_HOST: 10.26.10.7
+
+  DISCOURSE_DB_SOCKET: 
+  DISCOURSE_DB_HOST: 10.26.10.7
+
+  PGHOST: 10.26.10.7
+  PGPORT: 5433
+  PGDATABASE: discourse
+  PGUSER: discourse
+  PGPASSWORD: discourse
+
+  ENABLE_SSO: true
+  SSO_URL: https://c2corgv6.demo-camptocamp.com/auth-sso
+  LOGOUT_REDIRECT: https://c2corgv6.demo-camptocamp.com/auth-sso
+  SSO_SECRET: test
+
+#links:
+#  - link:
+#      name: postgresql
+#      alias: postgresql
+#  - link:
+#      name: redis
+#      alias: redis
+
+## These containers are stateless, all data is stored in /shared
+volumes:
+  - volume:
+      host: /var/discourse/shared/standalone
+      guest: /shared
+  - volume:
+      host: /var/discourse/shared/standalone/log/var-log
+      guest: /var/log
+
+## The docker manager plugin allows you to one-click upgrade Discourse
+## http://discourse.example.com/admin/docker
+hooks:
+  after_code:
+    - exec:
+        cd: $home/plugins
+        cmd:
+          - git clone https://github.com/discourse/docker_manager.git
+          - git clone https://github.com/discourse/discourse-bbcode-color.git
+          #- git clone https://github.com/discourse/discourse-details.git
+
+    - file:
+        path: /var/www/discourse/config/initializers/900-site_settings_overrides.rb
+        contents: |
+          override_sso_settings = lambda {
+            RailsMultisite::ConnectionManagement.each_connection do
+              begin
+                STDERR.puts "=> Overriding SSO settings with environment variables"
+                SiteSetting.enable_sso = ENV["ENABLE_SSO"]
+                SiteSetting.sso_url = ENV["SSO_URL"]
+                SiteSetting.logout_redirect = ENV["LOGOUT_REDIRECT"]
+                SiteSetting.sso_secret = ENV["SSO_SECRET"]
+              rescue ActiveRecord::StatementInvalid
+                # This will happen when migrating a new database
+              rescue => e
+                STDERR.puts "URGENT: #{e} Failed to initialize site #{RailsMultisite::ConnectionManagement.current_db}"
+                # the show must go on, don't stop startup if multisite fails
+              end
+            end
+          }
+          if Rails.configuration.cache_classes
+            override_sso_settings.call
+          else
+            ActionDispatch::Reloader.to_prepare do
+              override_sso_settings.call
+            end
+          end
+
+## Remember, this is YAML syntax - you can only have one block with a name
+run:
+  - exec: echo "Beginning of custom commands"
+
+  ## If you want to set the 'From' email address for your first registration, uncomment and change:
+  #- exec: rails r "SiteSetting.notification_email='info@unconfigured.discourse.org'"
+  ## After getting the first signup email, re-comment the line. It only needs to run once.
+
+  ## If you want to configure password login for root, uncomment and change:
+  ## Use only one of the following lines:
+  #- exec: /usr/sbin/usermod -p 'PASSWORD_HASH' root
+  #- exec: /usr/sbin/usermod -p "$(mkpasswd -m sha-256 'RAW_PASSWORD')" root
+
+  ## If you want to authorized additional users, uncomment and change:
+  #- exec: ssh-import-id username
+  #- exec: ssh-import-id anotherusername
+
+  - exec: echo "End of custom commands"
+  - exec: awk -F\# '{print $1;}' ~/.ssh/authorized_keys | awk 'BEGIN { print "Authorized SSH keys for this container:"; } NF>=2 {print $NF;}'
