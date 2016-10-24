@@ -19,26 +19,12 @@ fi
 
 echo "Building image '${REPO}:${TAG}'"
 
-sudo -s
-mkdir /var/discourse
-git clone https://github.com/discourse/discourse_docker.git /var/discourse
+sudo mkdir /var/discourse
+sudo git clone https://github.com/discourse/discourse_docker.git /var/discourse
 
-cp ./samples/c2corgv6.yml /var/discourse/containers/
+sudo cp ./samples/c2corgv6.yml /var/discourse/containers/
 
 cd /var/discourse
-./launcher bootstrap c2corgv6
+sudo ./launcher bootstrap c2corgv6
 
-if [ "$TRAVIS_BRANCH" = "master" ]; then
-  echo "Building image '${REPO}:latest'"
-  docker tag local_discourse/c2corgv6
-  docker build -t "${REPO}:latest" .
-elif [ ! -z "$TRAVIS_TAG" ]; then
-  echo "Building image '${REPO}:${TRAVIS_TAG}'"
-  docker build -t "${REPO}:${TRAVIS_TAG}" .
-elif [ ! -z "$TRAVIS_BRANCH" ]; then
-  echo "Building image '${REPO}:${TRAVIS_BRANCH}'"
-  docker build -t "${REPO}:${TRAVIS_BRANCH}" .
-else
-  echo "Don't know how to build image"
-  exit 1
-fi
+sudo docker tag local_discourse/c2corgv6 ${REPO}:${TAG}
