@@ -96,10 +96,10 @@ env:
 
 links:
   - link:
-      name: travis_postgresql_1
+      name: travis:postgresql
       alias: postgresql
   - link:
-      name: travis_redis_1
+      name: travis:redis
       alias: redis
 
 ## These containers are stateless, all data is stored in /shared
@@ -129,10 +129,14 @@ hooks:
             RailsMultisite::ConnectionManagement.each_connection do
               begin
                 STDERR.puts "=> Overriding SSO settings with environment variables"
+
                 SiteSetting.enable_sso = ENV["ENABLE_SSO"]
                 SiteSetting.sso_url = ENV["SSO_URL"]
                 SiteSetting.logout_redirect = ENV["LOGOUT_REDIRECT"]
                 SiteSetting.sso_secret = ENV["SSO_SECRET"]
+
+                SiteSetting.allow_index_in_robots_txt = ENV["ALLOW_INDEX_IN_ROBOTS_TXT"]
+
               rescue ActiveRecord::StatementInvalid
                 # This will happen when migrating a new database
               rescue => e

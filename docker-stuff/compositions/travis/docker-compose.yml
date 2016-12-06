@@ -2,12 +2,12 @@ version: '2'
 
 services:
   postgresql:
-    container_name: 'test_postgresql'
+    container_name: 'postgresql'
     build: ../../images/pgsql
 
   redis:
-    container_name: 'test_redis'
-    image: redis
+    container_name: 'redis'
+    image: 'docker.io/redis:3.2'
 
   wait:
     image: waisbrot/wait
